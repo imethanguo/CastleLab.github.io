@@ -8,51 +8,69 @@ import {
 } from 'react-paper-list';
 import axios from 'axios';
 
+const PUBLICATION_DATA_URL =
+  'https://raw.githubusercontent.com/imethanguo/selected-publications/master/public/bundle.json';
+
 export function Publication(): ReactElement {
   const [papers, setPapers] = useState([] as LiteratureEntry[]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchPromise = new Promise<LiteratureEntry[]>((resolve) => {
-      axios
-        .get(
-          'https://castlelab.github.io/selected-publications/public/bundle.json',
-        )
-        .then((resp) => {
-          console.log('Fetched data: ', resp.data);
-          const papers: LiteratureEntry[] = resp.data.map(
-            (d: any, index: number) => {
-              return {
-                id: index,
-                title: d.title,
-                date: new Date(d.date),
-                type: 'Conference Paper',
-                authors: d.authors.map((a: any) => {
-                  return {
-                    lastName: a,
-                    firstName: '',
-                  } as LiteratureAuthor;
-                }),
-                venue: d.venue,
-                venueShort: d.venueShort,
-                tags: d.tags,
-                awards: d.awards,
-                paperUrl: d.paperUrl,
-                abstract: d.abstract,
-                bibtex: d.bibtex,
-                projectUrl: d.projectUrl,
-                slidesUrl: d.slidesUrl,
-              } as unknown as LiteratureEntry;
-            },
-          );
-          resolve(papers);
-        });
-    });
+    let cancelled = false;
 
-    fetchPromise.then((r) => {
-      setPapers(r);
-      setLoading(false);
-    });
+    const fetchPapers = async () => {
+      try {
+        const resp = await axios.get(PUBLICATION_DATA_URL, {
+          params: {
+            v: Date.now(),
+          },
+        });
+        const nextPapers: LiteratureEntry[] = resp.data.map(
+          (d: any, index: number) => {
+            return {
+              id: index,
+              title: d.title,
+              date: new Date(d.date),
+              type: 'Conference Paper',
+              authors: d.authors.map((a: any) => {
+                return {
+                  lastName: a,
+                  firstName: '',
+                } as LiteratureAuthor;
+              }),
+              venue: d.venue,
+              venueShort: d.venueShort,
+              tags: d.tags,
+              awards: d.awards,
+              paperUrl: d.paperUrl,
+              abstract: d.abstract,
+              bibtex: d.bibtex,
+              projectUrl: d.projectUrl,
+              slidesUrl: d.slidesUrl,
+            } as unknown as LiteratureEntry;
+          },
+        );
+
+        if (!cancelled) {
+          setPapers(nextPapers);
+        }
+      } catch (error) {
+        console.error('Failed to fetch publications:', error);
+        if (!cancelled) {
+          setPapers([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchPapers();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
